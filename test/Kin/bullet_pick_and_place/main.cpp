@@ -67,8 +67,6 @@ void simGfile(){
         bull_rai.setMotorQ(C);
       }else if(t==100){
         bull_rai.setFinger("L_finger", 0., .01, .2);
-        bull_rai.setFinger("L2_finger", 0., .01, .2);
-        bull_rai.setFinger("L3_finger", 0., .01, .2);
       }else if(t>200 && t<300){
         arr q = komo2.getConfiguration_qOrg(int((t-200)/10));
         C.setJointState(q);
@@ -79,8 +77,6 @@ void simGfile(){
         bull_rai.setMotorQ(C);
       }else if(t==700){
         bull_rai.setFinger("L_finger", 1., .01, .2);
-        bull_rai.setFinger("L2_finger", 1., .01, .2);
-        bull_rai.setFinger("L3_finger", 1., .01, .2);
       }else if(t>800 && t<900){
         arr q = komo2.getConfiguration_qOrg(int((t-800)/10));
         C.setJointState(q);
