@@ -23,7 +23,6 @@
 #include <BulletDynamics/Featherstone/btMultiBodyJointLimitConstraint.h>
 #include <BulletDynamics/Featherstone/btMultiBodyGearConstraint.h>
 
-
 // ============================================================================
 
 constexpr float gravity = -9.81f;
@@ -171,6 +170,7 @@ BulletInterface::BulletInterface(rai::Configuration& C, const rai::Bullet_Option
     FrameL parts = C.getParts();
     for(rai::Frame *f : parts){
       self->addMultiBody(f);
+      if((*f->ats)["motors"]) motorizeMultiBody(f);
     }
     //  self->addMultiBody(C(0), verbose);
     //  self->addExample();
@@ -318,7 +318,7 @@ void BulletInterface::motorizeMultiBody(rai::Frame* base){
   auto world = dynamic_cast<btMultiBodyDynamicsWorld*>(self->dynamicsWorld);
   CHECK(world, "need a btMultiBodyDynamicsWorld");
   for(uint i=0;i<n;i++){
-    auto mot = new btMultiBodyJointMotor(mi.multibody, i, 0., 1.);
+    auto mot = new btMultiBodyJointMotor(mi.multibody, i, 0., 100000.);
     if(!mi.links(i+1)->joint->mimic){
       world->addMultiBodyConstraint(mot);
       arr q = mi.links(i+1)->joint->calcDofsFromConfig();
@@ -331,25 +331,12 @@ void BulletInterface::motorizeMultiBody(rai::Frame* base){
 
 void BulletInterface::setMotorQ(const rai::Configuration& C){
   CHECK(self->opt.multiBody, "");
-  for(MultiBodyInfo& mi: self->multibodies){
-    for(uint i=0;i<mi.motors.N;i++) if(!(*C[mi.links(i+1)->name]->ats)["finger"] && !mi.links(i+1)->joint->mimic) {
-      auto mot = mi.motors(i);
-      arr q = C[mi.links(i+1)->name]->joint->calcDofsFromConfig();
-      mot->setPositionTarget(q.scalar(), opt().motorKp);
-//      mot->setVelocityTarget(0., opt().motorKd);
-    }
-  }
-}
-
-void BulletInterface::setFinger(rai::String fingerName, double width, double Kp, double Kd){
-  for(MultiBodyInfo& mi: self->multibodies){
+  arr q = C.getJointState();
+  uint qIdx=0;
+  for(MultiBodyInfo& mi:self->multibodies){
     for(uint i=0;i<mi.motors.N;i++){
-      if(mi.links(i+1)->name==fingerName){
-        auto mot = mi.motors(i);
-        mot->setPositionTarget(-0.05*(1-width), Kp);
-        mot->setVelocityTarget(0., Kd);
-        return;
-      }
+      mi.motors(i)->setPositionTarget(q(qIdx++), opt().motorKp);
+//    mi.motors(i)->setVelocityTarget(0., .1);
     }
   }
 }
@@ -521,7 +508,7 @@ btMultiBody* BulletInterface_self::addMultiBody(rai::Frame* base) {
   FrameL F = {base};
   base->getPartSubFrames(F);
   FrameL links = {base};
-  for(auto* f:F){ if(f->joint) links.append(f); }
+  for(auto* f:F){ if(f->joint && !f->joint->isPartBreak()) links.append(f); }
 //  if(links.N==1){ addLink(base); return 0; } //actually just a single body, not multibody...
   intA parents(links.N);
   parents(0) = -1;
@@ -596,12 +583,11 @@ btMultiBody* BulletInterface_self::addMultiBody(rai::Frame* base) {
           btVector3 axis(1,0,0);
           multibody->setupRevolute(i-1, mass, localInertia, parents(i)-1,
                                    conv_rot_btQuat(-relA.rot), axis, conv_vec_btVec3(relA.pos), conv_vec_btVec3(relB.pos), true);
-         break;
-        } case rai::JT_transY:{
+        } break;
+        case rai::JT_transY:{
           btVector3 axis(0,1,0);
           multibody->setupPrismatic(i-1, mass, localInertia, parents(i)-1, conv_rot_btQuat(-relA.rot), axis, conv_vec_btVec3(relA.pos), conv_vec_btVec3(relB.pos), true);
-          break;
-        }
+        } break;
         default: NIY;
       };
       if(linkJoint->joint->limits.N){
@@ -634,6 +620,8 @@ btMultiBody* BulletInterface_self::addMultiBody(rai::Frame* base) {
           col->setFriction(friction);
         }
       }
+      col->setRollingFriction(.01);
+      col->setSpinningFriction(.01);
       {
         double restitution=opt.defaultRestitution;
         for(auto s:shapes) if(s->frame.ats) s->frame.ats->get<double>(restitution, "restitution");
