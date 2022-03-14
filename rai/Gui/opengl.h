@@ -100,7 +100,7 @@ void glDrawTexQuad(const byteA& img,
 void glRasterImage(float x, float y, byteA& img, float zoom=1.);
 
 void read_png(byteA& img, const char* file_name, bool swap_rows);
-void write_png(const byteA& img, const char* file_name, bool swap_rows);
+void write_png(const byteA& img, const char* file_name, bool swap_rows=true);
 
 
 //===========================================================================
@@ -170,7 +170,7 @@ struct OpenGL {
   bool noCursor;
 
   /// @name constructors & destructors
-  OpenGL(const char* title="rai::OpenGL", int w=800, int h=800, bool _offscreen=false, bool _fullscreen=false, bool _hideCameraControls=false, bool _noCursor=false);
+  OpenGL(const char* title="rai::OpenGL", int w=400, int h=400, bool _offscreen=false, bool _fullscreen=false, bool _hideCameraControls=false, bool _noCursor=false);
   //OpenGL(void *parent, const char* title="rai::OpenGL", int w=400, int h=400, int posx=-1, int posy=-1);
   OpenGL(void* container); //special constructor: used when the underlying system-dependent class exists already
 

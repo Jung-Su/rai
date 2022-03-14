@@ -44,8 +44,6 @@ struct BulletInterface {
   void motorizeMultiBody(rai::Frame* base);
   void setMotorQ(const rai::Configuration& C);
 
-  void setFinger(rai::String fingerName, double width=1., double Kp=.04, double Kd=.2);
-
   void saveBulletFile(const char* filename);
   class btDiscreteDynamicsWorld* getDynamicsWorld();
 
