@@ -22,6 +22,8 @@
 #include <BulletDynamics/Featherstone/btMultiBodyJointMotor.h>
 #include <BulletDynamics/Featherstone/btMultiBodyJointLimitConstraint.h>
 #include <BulletDynamics/Featherstone/btMultiBodyGearConstraint.h>
+//#include <InverseDynamics/BulletInverseDynamicsUtilsCommon.h>
+//#include <BulletInverseDynamics/btBulletCollisionCommon.h>
 
 // ============================================================================
 
@@ -65,6 +67,7 @@ struct MultiBodyInfo{
   btMultiBody* multibody;
   rai::Array<rai::Frame*> links;
   rai::Array<btMultiBodyJointMotor*> motors;
+//  rai::Array<btInverseDynamics::MultiBodyTree*> inverseModels;
 };
 
 struct BulletInterface_self {
@@ -113,6 +116,8 @@ void BulletInterface_self::initPhysics(){
     mbsol = new btMultiBodyConstraintSolver;
     dynamicsWorld = new btMultiBodyDynamicsWorld(dispatcher, broadphase, mbsol, collisionConfiguration);
     dynamicsWorld->getSolverInfo().m_globalCfm = 1e-3;
+//    dynamicsWorld->getSolverInfo().m_frictionCFM = 1e-3;
+    dynamicsWorld->getSolverInfo().m_numIterations = 100;
   } else{
     solver = new btSequentialImpulseConstraintSolver;
     dynamicsWorld = new btDiscreteDynamicsWorld(dispatcher, broadphase, solver, collisionConfiguration);
@@ -170,7 +175,7 @@ BulletInterface::BulletInterface(rai::Configuration& C, const rai::Bullet_Option
     FrameL parts = C.getParts();
     for(rai::Frame *f : parts){
       self->addMultiBody(f);
-      if((*f->ats)["motors"]) motorizeMultiBody(f);
+      if(f->ats && (*f->ats)["motors"]) motorizeMultiBody(f);
     }
     //  self->addMultiBody(C(0), verbose);
     //  self->addExample();
@@ -287,8 +292,9 @@ void BulletInterface::changeObjectType(rai::Frame* f, int _type, const arr& with
     //LOG(-1) <<"frame " <<*f <<" is already of type " <<type;
   }
 
-  btRigidBody* a = dynamic_cast<btRigidBody*>(self->actors(f->ID));
-  if(!a) HALT("frame " <<*f <<"is not an actor");
+//  btRigidBody* a = dynamic_cast<btRigidBody*>(self->actors(f->ID));
+  btMultiBodyLinkCollider* a = dynamic_cast<btMultiBodyLinkCollider*>(self->actors(f->ID));
+  if(!a) HALT("frame " << f->name <<" is not an actor (ID: " << f->ID << ")");
 
   if(type==rai::BT_kinematic) {
     a->setCollisionFlags(a->getCollisionFlags() | btCollisionObject::CF_KINEMATIC_OBJECT);
@@ -296,9 +302,9 @@ void BulletInterface::changeObjectType(rai::Frame* f, int _type, const arr& with
   } else if(type==rai::BT_dynamic) {
     a->setCollisionFlags(a->getCollisionFlags() & ~btCollisionObject::CF_KINEMATIC_OBJECT);
     a->setActivationState(DISABLE_DEACTIVATION);
-    if(withVelocity.N){
-      a->setLinearVelocity(btVector3(withVelocity(0), withVelocity(1), withVelocity(2)));
-    }
+//    if(withVelocity.N){
+//      a->setLinearVelocity(btVector3(withVelocity(0), withVelocity(1), withVelocity(2)));
+//    }
   } else NIY;
   self->actorTypes(f->ID) = type;
 }
@@ -318,7 +324,7 @@ void BulletInterface::motorizeMultiBody(rai::Frame* base){
   auto world = dynamic_cast<btMultiBodyDynamicsWorld*>(self->dynamicsWorld);
   CHECK(world, "need a btMultiBodyDynamicsWorld");
   for(uint i=0;i<n;i++){
-    auto mot = new btMultiBodyJointMotor(mi.multibody, i, 0., 100000.);
+    auto mot = new btMultiBodyJointMotor(mi.multibody, i, 0., 0.1);
     if(!mi.links(i+1)->joint->mimic){
       world->addMultiBodyConstraint(mot);
       arr q = mi.links(i+1)->joint->calcDofsFromConfig();
@@ -329,17 +335,43 @@ void BulletInterface::motorizeMultiBody(rai::Frame* base){
   }
 }
 
+//void BulletInterface::setMotorQ(const rai::Configuration& C){
+//  CHECK(self->opt.multiBody, "");
+//  arr q = C.getJointState();
+//  uint qIdx=0;
+//  for(MultiBodyInfo& mi:self->multibodies){
+//    for(uint i=0;i<mi.motors.N;i++){
+//      mi.motors(i)->setPositionTarget(q(qIdx++), opt().motorKp);
+////    mi.motors(i)->setVelocityTarget(0., .1);
+//    }
+//  }
+//}
+
 void BulletInterface::setMotorQ(const rai::Configuration& C){
   CHECK(self->opt.multiBody, "");
-  arr q = C.getJointState();
-  uint qIdx=0;
-  for(MultiBodyInfo& mi:self->multibodies){
-    for(uint i=0;i<mi.motors.N;i++){
-      mi.motors(i)->setPositionTarget(q(qIdx++), opt().motorKp);
-//    mi.motors(i)->setVelocityTarget(0., .1);
+  for(MultiBodyInfo& mi: self->multibodies){
+    for(uint i=0;i<mi.motors.N;i++) if(!(*C[mi.links(i+1)->name]->ats)["finger"] && !mi.links(i+1)->joint->mimic) {
+      auto mot = mi.motors(i);
+      arr q = C[mi.links(i+1)->name]->joint->calcDofsFromConfig();
+      mot->setPositionTarget(q.scalar(), opt().motorKp);
+//      mot->setVelocityTarget(0., opt().motorKd);
     }
   }
 }
+
+void BulletInterface::setMotorbyName(rai::String jointName, double q, double Kp, double Kd){
+  for(MultiBodyInfo& mi: self->multibodies){
+    for(uint i=0;i<mi.motors.N;i++){
+      if(mi.links(i+1)->name==jointName){
+        auto mot = mi.motors(i);
+        mot->setPositionTarget(q, Kp);
+        mot->setVelocityTarget(0., Kd);
+        return;
+      }
+    }
+  }
+}
+
 
 void BulletInterface::pushKinematicStates(const rai::Configuration& C) {
   for(rai::Frame* f: C.frames) {
@@ -503,7 +535,7 @@ btRigidBody* BulletInterface_self::addLink(rai::Frame* f) {
 }
 
 btMultiBody* BulletInterface_self::addMultiBody(rai::Frame* base) {
-  CHECK(!base->parent || (base->joint && base->inertia), "");
+  CHECK(!base->parent || (base->joint && base->joint->isPartBreak()) || (base->joint && base->inertia), "");
   //-- collect all links for that root
   FrameL F = {base};
   base->getPartSubFrames(F);
@@ -551,7 +583,7 @@ btMultiBody* BulletInterface_self::addMultiBody(rai::Frame* base) {
     rai::Frame* linkJoint = links(i);
     rai::Frame* linkMass = masses(i);
     if(i==0){
-      linkJoint=0;
+//      linkJoint=0;
     } else {
       CHECK(!linkJoint->inertia, ""); // JS: why? wouldn't it conflict with line531?
       CHECK(linkJoint->joint, "");
@@ -579,13 +611,23 @@ btMultiBody* BulletInterface_self::addMultiBody(rai::Frame* base) {
       rai::Transformation relB = linkMass->get_Q();
       //CHECK(relB.rot.isZero, ""); //check should hold only when all joint angles (linkJoint->Q) are zero
       switch(linkJoint->joint->type){
-        case rai::JT_hingeX:{
-          btVector3 axis(1,0,0);
+        case rai::JT_hingeX:
+        case rai::JT_hingeY:
+        case rai::JT_hingeZ:{
+          btVector3 axis(0,0,0);
+          if(linkJoint->joint->type==rai::JT_hingeX) axis.setX(1);
+          if(linkJoint->joint->type==rai::JT_hingeY) axis.setY(1);
+          if(linkJoint->joint->type==rai::JT_hingeZ) axis.setZ(1);
           multibody->setupRevolute(i-1, mass, localInertia, parents(i)-1,
                                    conv_rot_btQuat(-relA.rot), axis, conv_vec_btVec3(relA.pos), conv_vec_btVec3(relB.pos), true);
         } break;
-        case rai::JT_transY:{
-          btVector3 axis(0,1,0);
+        case rai::JT_transX:
+        case rai::JT_transY:
+        case rai::JT_transZ:{
+          btVector3 axis(0,0,0);
+          if(linkJoint->joint->type==rai::JT_transX) axis.setX(1);
+          if(linkJoint->joint->type==rai::JT_transY) axis.setY(1);
+          if(linkJoint->joint->type==rai::JT_transZ) axis.setZ(1);
           multibody->setupPrismatic(i-1, mass, localInertia, parents(i)-1, conv_rot_btQuat(-relA.rot), axis, conv_vec_btVec3(relA.pos), conv_vec_btVec3(relB.pos), true);
         } break;
         default: NIY;
@@ -601,7 +643,7 @@ btMultiBody* BulletInterface_self::addMultiBody(rai::Frame* base) {
         btMultiBodyConstraint* gearCons = new btMultiBodyGearConstraint(multibody, i-1, multibody, i-2, pivot, pivot, frame, frame);
         gearCons->setGearRatio(-1); //why needed? already flipped in config..
         gearCons->setErp(0.1);
-        gearCons->setMaxAppliedImpulse(50);
+        gearCons->setMaxAppliedImpulse(50*1e-2);
         world->addMultiBodyConstraint(gearCons);
       }
     }
@@ -641,7 +683,7 @@ btMultiBody* BulletInterface_self::addMultiBody(rai::Frame* base) {
   multibody->setCanSleep(false);
   multibody->setHasSelfCollision(true);
   multibody->setUseGyroTerm(false);
-  multibody->setLinearDamping(0.1f);
+  multibody->setLinearDamping(1.0f);
   multibody->setAngularDamping(0.9f);
 
   for(uint i=1; i<links.N; i++) {
