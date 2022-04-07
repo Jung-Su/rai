@@ -2274,12 +2274,12 @@ void OpenGL::MouseButton(int button, int downPressed, int _x, int _y, int mods) 
       arr x = {double(mouseposx), double(mouseposy), d};
 //      cout <<" image coords: " <<x;
       if(d<.01 || d==1.) {
-        cout <<"NO SELECTION: SELECTION DEPTH = " <<d <<' ' <<camera.glConvertToTrueDepth(d) <<endl;
+//        cout <<"NO SELECTION: SELECTION DEPTH = " <<d <<' ' <<camera.glConvertToTrueDepth(d) <<endl;
       } else {
         camera.unproject_fromPixelsAndGLDepth(x, width, height);
       }
-      LOG(1) <<"SELECTION: ID: " <<color2id(&captureImage(mouseposy, mouseposx, 0))
-            <<" world coords: " <<x;
+//      LOG(1) <<"SELECTION: ID: " <<color2id(&captureImage(mouseposy, mouseposx, 0))
+//            <<" world coords: " <<x;
     }
   } else {
     drawOptions.drawMode_idColor = false;
@@ -2293,7 +2293,7 @@ void OpenGL::MouseButton(int button, int downPressed, int _x, int _y, int mods) 
   if(mouse_button==3 && (!hideCameraControls || ((modifiers&1) && (modifiers&2)))) {
     double d = captureDepth(mouseposy, mouseposx);
     if(d<.001 || d==1.) {
-      cout <<"NO SELECTION: SELECTION DEPTH = " <<d <<' ' <<camera.glConvertToTrueDepth(d) <<endl;
+//      cout <<"NO SELECTION: SELECTION DEPTH = " <<d <<' ' <<camera.glConvertToTrueDepth(d) <<endl;
     } else {
       arr x = {(double)mouseposx, (double)mouseposy, d};
       if(v) {
@@ -2305,7 +2305,7 @@ void OpenGL::MouseButton(int button, int downPressed, int _x, int _y, int mods) 
         cam->unproject_fromPixelsAndGLDepth(x, width, height);
         cam->focus(x);
       }
-      LOG(1) <<"FOCUS: world coords: " <<x;
+//      LOG(1) <<"FOCUS: world coords: " <<x;
     }
     needsUpdate=true;
   }

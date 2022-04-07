@@ -83,7 +83,8 @@ PairCollision::PairCollision(rai::Mesh& _mesh1, rai::Mesh& _mesh2, const rai::Tr
   }
 #else
   if(distance<0.) {
-    libccd(M1, M2, _ccdMPRPenetration);
+//    libccd(M1, M2, _ccdMPRPenetration);
+    libccd(M1, M2, _ccdGJKPenetration);
   }
 #endif
 
@@ -316,7 +317,7 @@ void PairCollision::libccd(rai::Mesh& m1, rai::Mesh& m2, CCDmethod method) {
   }else if(method==_ccdGJKPenetration) {
       int ret = ccdGJKPenetration(&m1, &m2, &ccd, &_depth, &_dir, &_pos);
       if(ret<0) {
-        LOG(0) <<"WARNING: called MPR penetration for non intersecting meshes...";
+        LOG(0) <<"WARNING: called GJK penetration for non intersecting meshes...";
         m1._support_vertex = rnd(m1.V.d0);
         m2._support_vertex = rnd(m2.V.d0);
         libccd(m1, m2, _ccdGJKIntersect);

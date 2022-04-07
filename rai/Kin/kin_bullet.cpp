@@ -480,15 +480,15 @@ btRigidBody* BulletInterface_self::addLink(rai::Frame* f) {
       body->setFriction(friction);
     }
   }
-//  body->setRollingFriction(.01);
-//  body->setSpinningFriction(.01);
-  //cout <<body->getContactStiffness() <<' ' <<body->getContactDamping() <<endl;
-  body->setContactStiffnessAndDamping(opt.contactStiffness, opt.contactDamping);
+  body->setRollingFriction(.01);
+  body->setSpinningFriction(.01);
   {
     double restitution=opt.defaultRestitution;
     for(auto s:shapes) if(s->frame.ats) s->frame.ats->get<double>(restitution, "restitution");
     if(restitution>=0.) body->setRestitution(restitution);
   }
+  body->setContactStiffnessAndDamping(opt.contactStiffness, opt.contactDamping);
+
 
   dynamicsWorld->addRigidBody(body);
 
