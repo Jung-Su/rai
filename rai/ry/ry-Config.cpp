@@ -666,6 +666,7 @@ allows you to control robot motors by position, velocity, or accelerations, \
   ENUMVAL(position)
   ENUMVAL(velocity)
   ENUMVAL(acceleration)
+  ENUMVAL(spline)
   .export_values();
 
   pybind11::enum_<rai::Simulation::ImpType>(m, "ImpType")

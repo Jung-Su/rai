@@ -178,6 +178,8 @@ void init_KOMO(pybind11::module& m) {
 
   .def("getFrameState", &KOMO::getConfiguration_X)
 
+  .def("getPath_qOrg", &KOMO::getPath_qOrg)
+
   .def("getPathFrames", &KOMO::getPath_X)
 //  .def("getPathFrames", [](std::shared_ptr<KOMO>& self, const ry::I_StringA& frames) {
 //    arr X = self->getPath_frames(I_conv(frames));

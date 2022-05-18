@@ -498,7 +498,7 @@ void KOMO::setLiftDownUp(double time, const char* endeff, double timeToLift) {
 //
 
 void KOMO::setIKOpt() {
-  solver = rai::KS_dense;
+//  solver = rai::KS_dense;
   setTiming(1., 1, 1., 1);
   add_qControlObjective({}, 1, 1e-1);
   addQuaternionNorms();
