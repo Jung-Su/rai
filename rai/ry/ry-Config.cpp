@@ -676,6 +676,7 @@ allows you to control robot motors by position, velocity, or accelerations, \
   ENUMVAL(rgbNoise)
   ENUMVAL(adversarialDropper)
   ENUMVAL(objectImpulses)
+  ENUMVAL(noPenetrations)
   .export_values();
 
 }

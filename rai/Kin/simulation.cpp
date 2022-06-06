@@ -111,6 +111,13 @@ struct Imp_BlockJoints : SimulationImp {
   Imp_BlockJoints(const FrameL& _joints, Simulation& S);
   virtual void modConfiguration(Simulation& S, double tau);
 };
+//===========================================================================
+
+struct Imp_NoPenetrations : SimulationImp {
+  Imp_NoPenetrations() {when = _beforePhysics;};
+  virtual void modConfiguration(Simulation& S, double tau);
+};
+
 
 //===========================================================================
 
@@ -254,6 +261,7 @@ void Simulation::openGripper(const char* gripperFrameName, double width, double 
   //reattach object to world frame, and make it physical
   if(obj) {
     C.attach(C.frames(0), obj);
+    obj->inertia->type = BT_dynamic;
     if(engine==_physx) {
       self->physx->changeObjectType(obj, rai::BT_dynamic);
     } else {
@@ -426,6 +434,8 @@ void Simulation::addImp(Simulation::ImpType type, const StringA& frames, const a
     FrameL F = C.getFrames(frames);
     auto block = make_shared<Imp_BlockJoints>(F, *this);
     imps.append(block);
+  } else if(type==_noPenetrations){
+    imps.append(make_shared<Imp_NoPenetrations>());
   } else {
     NIY;
   }
@@ -640,6 +650,7 @@ void Imp_CloseGripper::modConfiguration(Simulation& S, double tau) {
         // kinematically attach object to gripper
         obj = obj->getUpwardLink();
         S.C.attach(gripper, obj);
+        obj->inertia->type = BT_kinematic;
 
         // tell engine that object is now kinematic, not dynamic
         if(S.engine==S._physx) {
@@ -739,6 +750,60 @@ void Imp_BlockJoints::modConfiguration(Simulation& S, double tau) {
   }
   S.C.setJointState(q);
 }
+
+void Imp_NoPenetrations::modConfiguration(Simulation& S, double tau){
+
+  uintA dynamicFrames;
+  for(rai::Frame* f: S.C.getLinks()) {
+    if(f->inertia)
+        if(f->inertia->type == rai::BT_dynamic) {
+            FrameL parts = {f};
+            f->getRigidSubFrames(parts);
+            for(rai::Frame* p: parts) dynamicFrames.append(p->ID);
+//            cout << f->name.p << endl;
+        }
+  }
+
+  for(uint t=0;t<100;t++){
+
+    arr y, J;
+    S.C.kinematicsZero(y, J, 1);
+
+    // Check penetrations between robot vs. static objects
+    S.C.stepSwift();
+    for(rai::Proxy& p: S.C.proxies){
+      if(!(dynamicFrames.contains(p.a->ID) || dynamicFrames.contains(p.b->ID))) {
+        if(p.d > p.a->shape->radius() + p.b->shape->radius() + .01) continue;
+        if(!p.collision) p.calc_coll();
+        if(p.collision->getDistance()>0.) continue;
+
+        arr Jp1, Jp2;
+        p.a->C.jacobian_pos(Jp1, p.a, p.collision->p1);
+        p.b->C.jacobian_pos(Jp2, p.b, p.collision->p2);
+
+        arr y_dist, J_dist;
+        p.collision->kinDistance(y_dist, J_dist, Jp1, Jp2);
+
+        if(y_dist.scalar()>0.) continue;
+        y -= y_dist.scalar();
+        J -= J_dist;
+      }
+    }
+
+    if(y.scalar() < 0.001) return;
+
+    // Resolve penetration
+    arr q = S.C.getJointState();
+//    q -= 0.3*pseudoInverse(J, NoArr, 1e-2) * y;
+//    q -= 0.3*inverse((~J)*J+1e-2*eye(q.d0)) * (~J) * y;
+    q -= 0.3* (~J) * y; //the above two casue an unknown error (only) in rai-python... why?
+    S.C.setJointState(q);
+  }
+
+}
+
+
+
 
 uint& Simulation::pngCount(){
   return self->display->pngCount;
