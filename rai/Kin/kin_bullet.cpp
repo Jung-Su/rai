@@ -367,10 +367,10 @@ void BulletInterface::pushFullState(const rai::Configuration& C, const arr& fram
       if(!!frameVelocities && frameVelocities.N) {
         b->setLinearVelocity(btVector3(frameVelocities(f->ID, 0, 0), frameVelocities(f->ID, 0, 1), frameVelocities(f->ID, 0, 2)));
         b->setAngularVelocity(btVector3(frameVelocities(f->ID, 1, 0), frameVelocities(f->ID, 1, 1), frameVelocities(f->ID, 1, 2)));
-      } else {
+      } /*else {
         b->setLinearVelocity(btVector3(0., 0., 0.));
         b->setAngularVelocity(btVector3(0., 0., 0.));
-      }
+      }*/
     }
   }
   self->dynamicsWorld->stepSimulation(.01); //without this, two consequtive pushFullState won't work! (something active tag?)

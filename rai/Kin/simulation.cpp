@@ -797,7 +797,7 @@ void Imp_NoPenetrations::modConfiguration(Simulation& S, double tau){
 //    q -= 0.3*inverse((~J)*J+1e-2*eye(q.d0)) * (~J) * y;
 
     arr vel = (~J) * y;
-    q -= 0.3*vel; //the above two casue an unknown error (only) in rai-python... why?
+    q -= 0.3*vel; //the above two cause an unknown error (only) in rai-python... why?
     S.C.setJointState(q);
     if(length(vel) < 1e-3) return;
   }
