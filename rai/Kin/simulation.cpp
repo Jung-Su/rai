@@ -790,14 +790,16 @@ void Imp_NoPenetrations::modConfiguration(Simulation& S, double tau){
       }
     }
 
-    if(y.scalar() < 0.001) return;
 
     // Resolve penetration
     arr q = S.C.getJointState();
 //    q -= 0.3*pseudoInverse(J, NoArr, 1e-2) * y;
 //    q -= 0.3*inverse((~J)*J+1e-2*eye(q.d0)) * (~J) * y;
-    q -= 0.3* (~J) * y; //the above two casue an unknown error (only) in rai-python... why?
+
+    arr vel = (~J) * y;
+    q -= 0.3*vel; //the above two casue an unknown error (only) in rai-python... why?
     S.C.setJointState(q);
+    if(length(vel) < 1e-3) return;
   }
 
 }
